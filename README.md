@@ -43,6 +43,11 @@ curl -i localhost:8000/keys/nope
 curl localhost:8000/keys/user:1/exists          # {"exists":true}
 curl -X DELETE localhost:8000/keys/user:1       # {"deleted":true}
 
+# 만료 다시 잡기: 남은 시간에 더하지 않고 지금부터 ttl초 (0 이하는 즉시 삭제, 없는 키는 false)
+curl -X POST localhost:8000/keys/user:1/expire -H 'content-type: application/json' -d '{"ttl":30}'
+# {"updated":true}
+curl localhost:8000/keys/user:1/ttl             # {"ttl":30}  (무기한 -1, 없음 -2)
+
 # 카운터: 없는 키는 0에서 시작, 기존 TTL은 유지
 curl -X POST localhost:8000/keys/hits/incr -H 'content-type: application/json' -d '{"amount":5}'
 # {"value":5}
@@ -104,11 +109,11 @@ tests/unit, tests/functional    bench/    sample_app/
 
 | 상태 | 내용 |
 | --- | --- |
-| 동작 | SET / GET / DEL / EXISTS / INCR, KEYS(prefix), prefix 삭제, FLUSH, lazy 만료, 타이밍 휠, HTTP API |
-| 리뷰 중 | EXPIRE / TTL 명령(#7), AOF·스냅샷·복구(#12~#14), 200ms 지연 가짜 원본 API(#17) |
+| 동작 | SET / GET / DEL / EXISTS / INCR / EXPIRE / TTL, KEYS(prefix), prefix 삭제, FLUSH, lazy 만료, 타이밍 휠, HTTP API |
+| 리뷰 중 | AOF·스냅샷·복구(#12~#14), 200ms 지연 가짜 원본 API(#17) |
 | 예정 | Lease 토큰(#10), 네임스페이스 무효화(#11), 샘플 앱과 성능 측정(#18~#21) |
 
-아직 없는 기능(`?lease`, `?ns`, EXPIRE, TTL 엔드포인트)은 조용히 무시하지 않고 501을 돌려준다.
+아직 없는 기능(`?lease`, `?ns`, 본문 `lease`)은 조용히 무시하지 않고 501을 돌려준다.
 
 ## 알려진 한계
 
