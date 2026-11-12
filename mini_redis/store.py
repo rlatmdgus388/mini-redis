@@ -16,6 +16,7 @@ from .errors import (
     ConfirmRequired,
     EmptyPrefix,
     InvalidKey,
+    InvalidTtl,
     InvalidValue,
     KeyNotFound,
     NotInteger,
@@ -162,7 +163,7 @@ class Store:
         """키를 저장한다. 이미 있으면 값과 만료 시각을 통째로 교체한다.
 
         expire_at_ms를 안 주면 기존 TTL도 사라진다 (Redis와 동일).
-        TTL(초) -> 절대 시각 변환과 INVALID_TTL 검증은 TTL 이슈(#7)에서 한다.
+        TTL(초) -> 절대 시각 변환과 INVALID_TTL 검증은 API(routes._parse_ttl)가 한다.
         """
         validate_key(key)
         validate_value(value)
@@ -217,6 +218,43 @@ class Store:
             raise NotInteger("결과가 64비트 정수 범위를 벗어납니다")
         self._table.put(key, str(result), expire_at_ms)
         return result
+
+    @locked
+    def expire(self, key: str, ttl: int) -> bool:
+        """만료를 지금부터 ttl초 뒤로 다시 잡는다. 남은 시간에 더하지 않는다 (Redis와 동일).
+
+        - 없는(또는 만료된) 키는 False, 키가 새로 생기지 않는다.
+        - ttl이 0 이하면 바로 지우고 True.
+        - ttl이 정수가 아니면 InvalidTtl(400).
+        """
+        validate_key(key)
+        if isinstance(ttl, bool) or not isinstance(ttl, int):
+            raise InvalidTtl("ttl은 정수(초)여야 합니다")
+        entry = self._get_live(key)
+        if entry is None:
+            return False
+        if ttl <= 0:
+            self._table.delete(key)  # AOF(#12): DEL로 기록
+            return True
+        old_expire_at_ms = entry.expire_at_ms
+        new_expire_at_ms = self._now_ms() + ttl * 1000
+        self._table.put(key, entry.value, new_expire_at_ms)
+        self._schedule_expiry(key, old_expire_at_ms, new_expire_at_ms)
+        return True
+
+    @locked
+    def ttl(self, key: str) -> int:
+        """남은 TTL(초). 없거나 만료됐으면 -2, 무기한이면 -1.
+
+        남은 ms를 올림한다. GET 응답의 ttl과 같은 숫자가 나오고, 살아 있는 키는 최소 1이다.
+        """
+        validate_key(key)
+        entry = self._get_live(key)
+        if entry is None:
+            return -2
+        if entry.expire_at_ms is None:
+            return -1
+        return -(-(entry.expire_at_ms - self._now_ms()) // 1000)
 
     @locked
     def keys(self, prefix: str = "") -> list[str]:

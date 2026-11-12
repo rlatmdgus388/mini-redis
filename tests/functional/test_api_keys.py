@@ -215,13 +215,56 @@ def test_incr_invalid_amount_returns_400(client, amount):
     assert (r.status_code, err(r)) == (400, "INVALID_VALUE")
 
 
-# --- 아직 구현 전인 명령은 조용히 무시하지 않고 거절 ---
+# --- EXPIRE / TTL ---
 
-def test_expire_and_ttl_not_implemented_yet_return_501(client):
+def test_ttl_missing_key_returns_minus_2(client):
+    r = client.get("/keys/nope/ttl")
+    assert (r.status_code, r.json()) == (200, {"ttl": -2})
+
+
+def test_ttl_key_without_ttl_returns_minus_1(client):
+    client.put("/keys/a", json={"value": "1"})
+    assert client.get("/keys/a/ttl").json() == {"ttl": -1}
+
+
+def test_ttl_matches_get_remaining_seconds(client, clock):
+    client.put("/keys/a", json={"value": "1", "ttl": 60})
+    clock.advance(18_500)  # 41.5초 남음 -> 올림
+    assert client.get("/keys/a/ttl").json() == {"ttl": 42}
+    assert client.get("/keys/a").json()["ttl"] == 42
+
+
+def test_expire_existing_key_returns_updated_true_and_expires_later(client, clock):
+    client.put("/keys/a", json={"value": "1"})
     r = client.post("/keys/a/expire", json={"ttl": 30})
-    assert (r.status_code, err(r)) == (501, "NOT_IMPLEMENTED")
-    r = client.get("/keys/a/ttl")
-    assert (r.status_code, err(r)) == (501, "NOT_IMPLEMENTED")
+    assert (r.status_code, r.json()) == (200, {"updated": True})
+    assert client.get("/keys/a/ttl").json() == {"ttl": 30}
+    clock.advance(30_000)
+    assert client.get("/keys/a").status_code == 404
+
+
+def test_expire_missing_key_returns_updated_false_and_creates_nothing(client, store):
+    r = client.post("/keys/nope/expire", json={"ttl": 30})
+    assert (r.status_code, r.json()) == (200, {"updated": False})
+    assert store.size() == 0
+
+
+@pytest.mark.parametrize("ttl", [0, -5])
+def test_expire_zero_or_negative_ttl_deletes_key(client, ttl):
+    client.put("/keys/a", json={"value": "1"})
+    assert client.post("/keys/a/expire", json={"ttl": ttl}).json() == {"updated": True}
+    assert client.get("/keys/a").status_code == 404
+
+
+@pytest.mark.parametrize("body", [{"ttl": 1.5}, {"ttl": "abc"}, {"ttl": "10"}, {"ttl": True}, {"ttl": None}, {}])
+def test_expire_invalid_or_missing_ttl_returns_400_invalid_ttl_and_keeps_key(client, body):
+    client.put("/keys/a", json={"value": "1"})
+    r = client.post("/keys/a/expire", json=body)
+    assert (r.status_code, err(r)) == (400, "INVALID_TTL")
+    assert client.get("/keys/a/ttl").json() == {"ttl": -1}
+
+
+# --- 아직 구현 전인 명령은 조용히 무시하지 않고 거절 ---
 
 
 @pytest.mark.parametrize("url", ["/keys/a?lease=1", "/keys/a?ns=user", "/keys/a?v=7"])

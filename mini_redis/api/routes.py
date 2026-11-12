@@ -108,13 +108,14 @@ def incr_key(key: str, body: dict = Depends(json_body), store: Store = Depends(g
 
 
 @router.post("/keys/{key}/expire")
-def expire_key(key: str):
-    raise NotImplementedYet("EXPIRE는 아직 지원하지 않습니다 (#7)")
+def expire_key(key: str, body: dict = Depends(json_body), store: Store = Depends(get_store)):
+    # 0 이하는 즉시 삭제라 _parse_ttl을 쓰지 않는다. 정수 검사(ttl 없음 포함)는 Store가 INVALID_TTL로 한다
+    return {"updated": store.expire(decode_key(key), body.get("ttl"))}
 
 
 @router.get("/keys/{key}/ttl")
-def ttl_key(key: str):
-    raise NotImplementedYet("TTL은 아직 지원하지 않습니다 (#7)")
+def ttl_key(key: str, store: Store = Depends(get_store)):
+    return {"ttl": store.ttl(decode_key(key))}
 
 
 # --- 키 묶음 ---
