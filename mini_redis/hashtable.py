@@ -191,6 +191,37 @@ class HashTable:
         finally:
             self._iterating -= 1
 
+    def bucket_chunks(self, n_buckets: int):
+        """버킷 n_buckets개(빈 버킷 포함)씩 끊어, 그 안의 엔트리를 리스트로 내보내는 제너레이터를 돌려준다.
+
+        n_buckets가 1보다 작거나 정수가 아니면 부르는 순간 ValueError다 (next()를 기다리지 않는다).
+        한 덩어리는 체인을 통째로 담은 스냅샷이라 체인 한가운데서 멈추지 않는다.
+        (멈추면 그 사이 DEL이 `_unlink`로 node.next를 끊어, 아직 안 본 뒤쪽 엔트리를 놓칠 수 있어요.)
+        items()처럼 첫 next()에서 두 배열(_old, _buckets)을 잡아 두고, 살아 있는 동안 `_iterating`으로 리해싱을 멈춘다.
+        (리해싱을 멈추는 건 제너레이터가 시작된 뒤부터라, 만들기만 하고 안 돌리면 아무것도 붙잡지 않아요.)
+        끝까지 돌거나 close()해야 풀리니, 부르는 쪽이 finally에서 닫아 주세요.
+        """
+        if isinstance(n_buckets, bool) or not isinstance(n_buckets, int) or n_buckets < 1:
+            raise ValueError("n_buckets must be a positive integer")
+        return self._bucket_chunks(n_buckets)
+
+    def _bucket_chunks(self, n_buckets: int):
+        self._iterating += 1
+        try:
+            for buckets in (self._old, self._buckets):
+                if buckets is None:
+                    continue
+                for start in range(0, len(buckets), n_buckets):
+                    chunk = []
+                    for head in buckets[start:start + n_buckets]:
+                        node = head
+                        while node is not None:
+                            chunk.append(node)
+                            node = node.next
+                    yield chunk
+        finally:
+            self._iterating -= 1
+
     def _rehash_step(self) -> None:
         """옛 배열의 버킷을 앞에서부터 최대 rehash_buckets개(빈 버킷 포함) 새 배열로 옮긴다. 축소는 없다."""
         old = self._old

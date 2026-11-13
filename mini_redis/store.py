@@ -529,6 +529,49 @@ class Store:
             self._table.delete(key)
         return len(victims)
 
+    def delete_prefix_batched(self, prefix: str, batch_buckets: int, *, _between_chunks=None) -> int:
+        """delete_prefix와 같은 일을 버킷 batch_buckets개씩 나눠, 덩어리 사이에는 락을 풀어 준다.
+
+        @locked를 붙이지 않는다. 덩어리마다 락을 잡았다 놓으니 다른 요청이 그 사이에 끼어들 수 있다.
+        - 원자적이지 않다: 도는 동안 새로 SET된 키는 지워질 수도, 아닐 수도 있다 (SCAN과 같은 약속).
+        - lease는 시작할 때 한 번만 지운다. 도중에 받은 lease는 그대로 유효하다.
+        - 도는 동안 FLUSH가 테이블을 바꿔 끼우면 거기서 멈추고 그때까지 센 개수를 돌려준다.
+        - AOF가 거절하면 예외가 그대로 올라간다. 이미 지운 키는 지워진 채 남고, 다시 부르면 이어서 지운다.
+        - _between_chunks: 테스트 전용 이음매. 덩어리 하나를 처리하고 락을 푼 뒤에 인자 없이 불린다.
+        """
+        _validate_prefix(prefix)
+        if prefix == "":
+            raise EmptyPrefix("빈 prefix로는 지울 수 없습니다 (전체 삭제는 FLUSH)")
+        if isinstance(batch_buckets, bool) or not isinstance(batch_buckets, int) or batch_buckets < 1:
+            raise InvalidValue("batch는 1 이상의 정수여야 합니다")
+        with self._lock:
+            self._leases.drop_prefix(prefix)
+            table = self._table
+            gen = table.bucket_chunks(batch_buckets)
+        deleted = 0
+        try:
+            while True:
+                with self._lock:
+                    if self._table is not table:  # FLUSH가 테이블을 바꿔 끼웠다
+                        break
+                    chunk = next(gen, None)
+                    if chunk is None:
+                        break
+                    now = self._now_ms()
+                    for entry in chunk:
+                        if not entry.key.startswith(prefix):
+                            continue
+                        expired = entry.expire_at_ms is not None and now >= entry.expire_at_ms
+                        self._log(del_record(entry.key))
+                        if table.delete(entry.key) and not expired:
+                            deleted += 1
+                if _between_chunks is not None:
+                    _between_chunks()
+        finally:
+            with self._lock:  # 닫으면서 _iterating을 내리니 락 안에서 (RLock이라 다시 잡아도 괜찮아요)
+                gen.close()
+        return deleted
+
     @locked
     def invalidate(self, ns: str) -> int:
         """네임스페이스의 버전을 올려 옛 버전 키를 한 번에 안 보이게 한다. 새 버전을 돌려준다. O(1).

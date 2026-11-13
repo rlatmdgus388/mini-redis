@@ -49,12 +49,15 @@ ROW_LABELS = {
     "control_a": "대조 A: 희생자 혼자",
     "control_b": "대조 B: GIL만 (락 없는 파이썬 작업)",
     "prefix_delete": "prefix 삭제 (DEL prefix)",
+    "prefix_delete_batched_1024": "prefix 삭제 (나눠서, 버킷 1,024개)",
+    "prefix_delete_batched_16384": "prefix 삭제 (나눠서, 버킷 16,384개)",
     "keys": "KEYS prefix",
     "snapshot": "스냅샷 복사",
     "resize_incremental": "리사이즈 (점진적, main)",
     "resize_bulk": "리사이즈 (일괄, 비교용)",
 }
 RESIZE_ROWS = ("resize_incremental", "resize_bulk")
+BATCHED_ROWS = {"prefix_delete_batched_1024": 1024, "prefix_delete_batched_16384": 16384}  # #26: 행 id -> 덩어리당 버킷 수
 RESIZE_NAME = "GET이 같이 옮겨 주는 리해싱, 두 스레드"
 NO_OVERLAP = "겹친 요청 없음"
 
@@ -76,7 +79,7 @@ def build_store(row_id, n_keys, prefix_share):
             store.set(f"key:{i}", "v")
         return store
     store = Store()
-    n_prefix = int(n_keys * prefix_share) if row_id in ("prefix_delete", "keys") else 0
+    n_prefix = int(n_keys * prefix_share) if row_id in ("prefix_delete", "keys", *BATCHED_ROWS) else 0
     for i in range(n_prefix):
         store.set(f"{PREFIX}{i}", "v")
     for i in range(n_keys - n_prefix):
@@ -152,6 +155,9 @@ def _op(row_id, store, n_keys):
         return work
     if row_id == "prefix_delete":
         return lambda: {"removed": store.delete_prefix(PREFIX)}
+    if row_id in BATCHED_ROWS:
+        buckets = BATCHED_ROWS[row_id]
+        return lambda: {"removed": store.delete_prefix_batched(PREFIX, buckets)}
     if row_id == "keys":
         return lambda: {"found": len(store.keys(PREFIX))}
     if row_id == "snapshot":
@@ -222,7 +228,7 @@ def run_row(row_id, n_keys, prefix_share, use_gc=False, window_s=None):
     return result
 
 
-ORDER = ("control_b", "prefix_delete", "keys", "snapshot", "resize_incremental", "resize_bulk")
+ORDER = ("control_b", "prefix_delete", *BATCHED_ROWS, "keys", "snapshot", "resize_incremental", "resize_bulk")
 
 
 def measure(n_keys, repeat, prefix_share, use_gc):

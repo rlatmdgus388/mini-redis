@@ -1,7 +1,7 @@
 """bench/lock_pause.py 스모크 테스트 (#20). 시간 값은 확인하지 않고 구조와 개수만 본다.
 
 구현이 맞춰야 하는 이름:
-- ROW_LABELS: {행 id: 표에 적는 이름} 7개. 순서는 아래 ROW_IDS와 같다.
+- ROW_LABELS: {행 id: 표에 적는 이름} 9개(#26에서 나눠서 지우는 두 행이 prefix_delete 바로 뒤에 붙는다). 순서는 아래 ROW_IDS와 같다.
 - build_store(row_id, n_keys, prefix_share) -> Store: 그 행을 재기 직전 상태의 Store.
 - run_row(row_id, n_keys, prefix_share, use_gc=False) -> dict: 한 번 재고 "victim_calls"(구간 안에서 시작한
   다른 요청 수)를 담는다. prefix_delete 행은 "removed"(지워진 키 수)도 담는다.
@@ -18,17 +18,44 @@ from bench.rehash_latency import resize_points
 from mini_redis.config import REHASH_BUCKETS_PER_STEP
 
 ROW_IDS = [
-    "control_a", "control_b", "prefix_delete", "keys", "snapshot", "resize_incremental", "resize_bulk",
+    "control_a", "control_b", "prefix_delete", "prefix_delete_batched_1024", "prefix_delete_batched_16384",
+    "keys", "snapshot", "resize_incremental", "resize_bulk",
 ]
+BATCHED = ("prefix_delete_batched_1024", "prefix_delete_batched_16384")
 N = 2000
 SHARE = 0.1
 BULK = 1 << 62
 RESIZE = ("resize_incremental", "resize_bulk")
 
 
-def test_lock_pause_row_labels_cover_the_seven_rows_in_order():
+def test_lock_pause_row_labels_cover_the_nine_rows_in_order():
     assert list(ROW_LABELS) == ROW_IDS
-    assert len(set(ROW_LABELS.values())) == 7
+    assert len(set(ROW_LABELS.values())) == 9
+
+
+def test_lock_pause_row_labels_name_the_batched_rows():
+    assert ROW_LABELS["prefix_delete_batched_1024"] == "prefix 삭제 (나눠서, 버킷 1,024개)"
+    assert ROW_LABELS["prefix_delete_batched_16384"] == "prefix 삭제 (나눠서, 버킷 16,384개)"
+
+
+def test_lock_pause_run_row_batched_rows_record_removed_victim_calls_and_no_scan():
+    for row_id in BATCHED:
+        r = run_row(row_id, N, SHARE)
+        assert r["removed"] == int(N * SHARE), row_id
+        assert "victim_calls" in r, row_id
+        assert r["scan_ns"] is None, row_id
+
+
+def test_lock_pause_main_small_run_lists_batched_rows_with_dash_in_scan_column(tmp_path):
+    out = tmp_path / "lock_pause.md"
+
+    main(["--keys", str(N), "--repeat", "1", "--out", str(out)])
+
+    rows = _table_rows(out.read_text(encoding="utf-8"), "희생자 호출 수")
+    for row_id in BATCHED:
+        row = next(r for r in rows if r.startswith(f"| {ROW_LABELS[row_id]} |"))
+        cells = [c.strip() for c in row.strip("|").split("|")]
+        assert cells[3] == "-"  # 열 순서: 작업, 반복, 작업 시간, 스캔
 
 
 def test_lock_pause_main_small_run_writes_results_with_every_row(tmp_path):

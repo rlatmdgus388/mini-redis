@@ -4,11 +4,12 @@
 """
 import json
 import math
+import re
 from urllib.parse import unquote
 
 from fastapi import APIRouter, Depends, Query, Request
 
-from ..errors import InvalidBody, InvalidKey, InvalidTtl
+from ..errors import InvalidBody, InvalidKey, InvalidTtl, InvalidValue
 from ..store import Store
 
 router = APIRouter()
@@ -134,8 +135,14 @@ def list_keys(prefix: str = Query(""), store: Store = Depends(get_store)):
 
 
 @router.delete("/keys")
-def delete_keys(prefix: str = Query(""), store: Store = Depends(get_store)):
-    return {"deleted": store.delete_prefix(prefix)}
+def delete_keys(prefix: str = Query(""), batch: str | None = Query(None), store: Store = Depends(get_store)):
+    """batch(버킷 개수)가 있으면 나눠서 지운다 (#26, 원자적이지 않음). 없으면 예전 그대로 한 번에."""
+    if batch is None:
+        return {"deleted": store.delete_prefix(prefix)}
+    if not re.fullmatch(r"[0-9]+", batch):  # int()는 "3_0"·" 4 "·"٣"·"+4"도 받아 줘서 직접 거른다
+        raise InvalidValue("batch는 1 이상의 정수여야 합니다")
+    buckets = int(batch)
+    return {"deleted": store.delete_prefix_batched(prefix, buckets)}
 
 
 @router.post("/namespaces/{ns}/invalidate")

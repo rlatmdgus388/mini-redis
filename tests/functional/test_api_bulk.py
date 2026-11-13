@@ -58,3 +58,21 @@ def test_flush_path_does_not_collide_with_key_named_all(client):
     client.put("/keys/all", json={"value": "v"})
     assert client.delete("/keys/all").json() == {"deleted": True}
     assert client.post("/admin/flush", json={"confirm": True}).status_code == 200
+
+
+def test_delete_prefix_without_batch_param_keeps_todays_response(seeded):
+    r = seeded.delete("/keys", params={"prefix": "user:"})
+    assert (r.status_code, r.json()) == (200, {"deleted": 2})
+
+
+def test_delete_prefix_with_batch_param_returns_same_deleted_shape(seeded):
+    r = seeded.delete("/keys", params={"prefix": "user:", "batch": 4})
+    assert (r.status_code, r.json()) == (200, {"deleted": 2})
+    assert seeded.get("/keys").json()["keys"] == ["post:1", "user"]
+
+
+@pytest.mark.parametrize("batch", ["0", "-3", "x", "1.5", "3_0", " 4 ", "٣", "+4"])
+def test_delete_prefix_with_bad_batch_param_returns_400_invalid_value(seeded, batch):
+    r = seeded.delete("/keys", params={"prefix": "user:", "batch": batch})
+    assert (r.status_code, r.json()["error"]) == (400, "INVALID_VALUE")
+    assert len(seeded.get("/keys").json()["keys"]) == 4
