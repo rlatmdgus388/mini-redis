@@ -21,6 +21,27 @@ pytest
 
 > Uvicorn 워커는 **1개**로 고정한다. 워커가 여러 개면 프로세스마다 저장소가 따로 생긴다.
 
+### 캐시가 되는지 눈으로 보기
+
+서버 세 개(Mini Redis, 200ms 걸리는 가짜 원본, 샘플 앱)를 한 번에 띄우고 같은 요청을 반복해서 속도 차이를 보여 준다.
+
+```bash
+./scripts/demo.sh          # 서버를 켜 둔 채 Ctrl+C까지 기다린다
+./scripts/demo.sh --once   # 데모만 보고 바로 끝낸다
+```
+
+```
+1번째: MISS     208 ms     ← 캐시에 없어서 느린 원본까지 감
+2번째: HIT        2 ms     ← Mini Redis에서 바로 돌려줌
+샘플 앱  {"hits":3,"misses":2}
+원본 API {"calls":2}       ← 요청 5번 중 원본은 2번만 불림
+```
+
+포트는 `REDIS_PORT`(8000), `ORIGIN_PORT`(8001), `SAMPLE_PORT`(8002) 환경 변수로 바꾼다. 이미 쓰는 포트가 있으면 알려 주고 멈춘다.
+Mini Redis의 영속 파일은 임시 폴더에 만들어져서 레포에 남지 않고, 종료하면 세 서버가 모두 정리된다.
+서버를 켜 둔 동안 `http://127.0.0.1:8002/items/1`(샘플 앱)이나 `/docs`(Swagger)를 브라우저로 열어 볼 수 있다.
+서버 세 개를 따로 띄우는 방법은 [sample_app/README.md](sample_app/README.md)에 있다.
+
 ## API 예시
 
 키는 경로에 퍼센트 인코딩해서 넣는다. 아래는 `curl`로 해 본 예시다.
