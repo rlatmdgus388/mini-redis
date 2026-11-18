@@ -34,6 +34,27 @@ python -m bench.cache_effect --items 100 --requests 2000 --concurrency 16 --repe
 - 고정 동시성(`--concurrency 16`)의 응용 처리량이다. Starlette의 동기 스레드 40개와 httpx의 연결 100개보다 작은 값이라 어느 쪽에도 막히지 않고, Mini Redis의 처리 한계를 잰 값이 아니다.
 - 가짜 원본의 지연은 고정(`ORIGIN_DELAY_MS`)이고 `asyncio.sleep`이라 원본이 부하로 느려지는 것은 재현하지 않는다.
 
+## 실제 DB 캐시 효과: PostgreSQL 앞에서 캐시 끔 vs 켬
+
+`cache_effect`는 sleep으로 200ms를 흉내 낸 가짜 원본을 쓴다. 이쪽은 지연을 만들지 않고 진짜 PostgreSQL 쿼리가 걸린 시간을 그대로 잰다. 쿼리 무게(가벼운 것, 무거운 것)별로 따로 잰다.
+
+먼저 PostgreSQL을 띄우고 데이터를 만든다(Docker 필요). 레포 루트에서:
+
+```bash
+docker run -d --name mini-redis-pg -e POSTGRES_PASSWORD=bench -e POSTGRES_DB=bench -p 127.0.0.1:5433:5432 postgres:16
+pip install -e '.[dev]'        # psycopg 포함
+python -m bench.pg_seed        # users 1,000명, orders 200만 건 (몇 초)
+python -m bench.db_cache_effect --repeat 3
+```
+
+다 쓰면 `docker rm -f mini-redis-pg`로 지운다. DB 주소를 바꾸려면 환경 변수 `PG_DSN`을 쓴다(기본 `postgresql://postgres:bench@127.0.0.1:5433/bench`).
+
+결과는 [results/db_cache_effect.md](results/db_cache_effect.md)에 있다.
+
+- **light**: 기본키로 사용자 한 명 읽기. **heavy**: 주문 200만 건에서 사용자 한 명의 카테고리별 합계(`user_id` 인덱스 없음).
+- 모드마다 프로세스 두 개(Mini Redis, 샘플 앱 `sample_app.pg_app`)를 새로 띄운다. 요청 단계, 동시성, 반복, 통계는 `cache_effect`와 같다.
+- 한계: DB와 앱이 같은 컴퓨터라 네트워크 지연이 거의 없고, 쿼리 두 종류만 잰다. 쿼리가 가벼우면 캐시가 오히려 느릴 수 있다(결과 파일 참고).
+
 ## 만료 회수: 타이밍 휠 vs lazy만 (#21)
 
 레포 루트에서 돌린다(키 10만 개 기본값으로 약 4초).

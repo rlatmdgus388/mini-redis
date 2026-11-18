@@ -6,85 +6,88 @@
 </defs>
 <rect width="1200" height="800" rx="28" fill="#dde1e8"/>
 <rect x="10" y="10" width="1180" height="780" rx="24" fill="#ffffff" filter="url(#sh)"/>
-<text x="48" y="72" font-size="30" font-weight="700" fill="#111318" text-anchor="start">성능 측정 결과</text>
-<text x="48" y="102" font-size="15" font-weight="400" fill="#6b7280" text-anchor="start">같은 요청 2,000개를 캐시 없이 / 캐시를 켜고 보냈어요. 3번 반복했고 막대 하나가 한 번의 결과예요.</text>
+<text x="48" y="72" font-size="30" font-weight="700" fill="#111318" text-anchor="start">성능 측정 결과: 실제 PostgreSQL 앞에서</text>
+<text x="48" y="102" font-size="15" font-weight="400" fill="#6b7280" text-anchor="start">같은 요청 2,000개를 캐시 없이(매번 DB) / Mini Redis를 앞에 두고 보냈어요. 3번 반복했고 막대 하나가 한 번의 결과예요.</text>
 <rect x="888" y="58" width="16" height="16" rx="4" fill="#b8bfca"/><text x="912" y="71" font-size="14" font-weight="700" fill="#111318" text-anchor="start">캐시 끔</text>
 <rect x="988" y="58" width="16" height="16" rx="4" fill="#f97316"/><text x="1012" y="71" font-size="14" font-weight="700" fill="#111318" text-anchor="start">캐시 켬</text>
 <rect x="48" y="126" width="528" height="250" rx="14" fill="#fff" stroke="#e1e3e8" filter="url(#sh)"/>
-<text x="70" y="160" font-size="19" font-weight="700" fill="#111318" text-anchor="start">응답 시간 p50</text>
-<text x="70" y="184" font-size="13" font-weight="400" fill="#6b7280" text-anchor="start">요청의 절반이 이 시간 안에 끝나요 (ms) · 짧을수록 좋아요</text>
+<text x="70" y="160" font-size="19" font-weight="700" fill="#111318" text-anchor="start">무거운 쿼리: 응답 시간 p50</text>
+<text x="70" y="184" font-size="13" font-weight="400" fill="#6b7280" text-anchor="start">주문 200만 건 집계 (ms) · 짧을수록 좋아요</text>
 <line x1="70" y1="338" x2="554" y2="338" stroke="#e4e6ea" stroke-width="2"/>
-<rect x="82" y="250.3" width="56" height="87.7" rx="6" fill="#b8bfca"/>
-<text x="110" y="242.32" font-size="14" font-weight="700" fill="#6b7280" text-anchor="middle">219.2</text>
-<rect x="146" y="324.5" width="56" height="13.5" rx="6" fill="#f97316"/>
-<text x="174" y="316.52" font-size="14" font-weight="700" fill="#c2570c" text-anchor="middle">33.7</text>
+<rect x="82" y="251.8" width="56" height="86.2" rx="6" fill="#b8bfca"/>
+<text x="110" y="243.76470588235293" font-size="14" font-weight="700" fill="#6b7280" text-anchor="middle">146.6</text>
+<rect x="146" y="331.1" width="56" height="6.9" rx="6" fill="#f97316"/>
+<text x="174" y="323.11764705882354" font-size="14" font-weight="700" fill="#c2570c" text-anchor="middle">11.7</text>
 <text x="142" y="360" font-size="13" font-weight="500" fill="#6b7280" text-anchor="middle">1회차</text>
-<rect x="242" y="250.4" width="56" height="87.6" rx="6" fill="#b8bfca"/>
-<text x="270" y="242.4" font-size="14" font-weight="700" fill="#6b7280" text-anchor="middle">219.0</text>
-<rect x="306" y="327.4" width="56" height="10.6" rx="6" fill="#f97316"/>
-<text x="334" y="319.44" font-size="14" font-weight="700" fill="#c2570c" text-anchor="middle">26.4</text>
+<rect x="242" y="249.6" width="56" height="88.4" rx="6" fill="#b8bfca"/>
+<text x="270" y="241.58823529411762" font-size="14" font-weight="700" fill="#6b7280" text-anchor="middle">150.3</text>
+<rect x="306" y="331.2" width="56" height="6.8" rx="6" fill="#f97316"/>
+<text x="334" y="323.1764705882353" font-size="14" font-weight="700" fill="#c2570c" text-anchor="middle">11.6</text>
 <text x="302" y="360" font-size="13" font-weight="500" fill="#6b7280" text-anchor="middle">2회차</text>
-<rect x="402" y="250.3" width="56" height="87.7" rx="6" fill="#b8bfca"/>
-<text x="430" y="242.28" font-size="14" font-weight="700" fill="#6b7280" text-anchor="middle">219.3</text>
-<rect x="466" y="324.4" width="56" height="13.6" rx="6" fill="#f97316"/>
-<text x="494" y="316.4" font-size="14" font-weight="700" fill="#c2570c" text-anchor="middle">34.0</text>
+<rect x="402" y="248.6" width="56" height="89.4" rx="6" fill="#b8bfca"/>
+<text x="430" y="240.58823529411765" font-size="14" font-weight="700" fill="#6b7280" text-anchor="middle">152.0</text>
+<rect x="466" y="330.5" width="56" height="7.5" rx="6" fill="#f97316"/>
+<text x="494" y="322.47058823529414" font-size="14" font-weight="700" fill="#c2570c" text-anchor="middle">12.8</text>
 <text x="462" y="360" font-size="13" font-weight="500" fill="#6b7280" text-anchor="middle">3회차</text>
 <rect x="624" y="126" width="528" height="250" rx="14" fill="#fff" stroke="#e1e3e8" filter="url(#sh)"/>
-<text x="646" y="160" font-size="19" font-weight="700" fill="#111318" text-anchor="start">응답 시간 p95</text>
-<text x="646" y="184" font-size="13" font-weight="400" fill="#6b7280" text-anchor="start">느린 5%를 뺀 나머지가 이 시간 안에 끝나요 (ms) · 짧을수록 좋아요</text>
+<text x="646" y="160" font-size="19" font-weight="700" fill="#111318" text-anchor="start">무거운 쿼리: 처리량</text>
+<text x="646" y="184" font-size="13" font-weight="400" fill="#6b7280" text-anchor="start">1초에 처리한 요청 수 (req/s) · 많을수록 좋아요</text>
 <line x1="646" y1="338" x2="1130" y2="338" stroke="#e4e6ea" stroke-width="2"/>
-<rect x="658" y="246.1" width="56" height="91.9" rx="6" fill="#b8bfca"/>
-<text x="686" y="238.12" font-size="14" font-weight="700" fill="#6b7280" text-anchor="middle">229.7</text>
-<rect x="722" y="309.6" width="56" height="28.4" rx="6" fill="#f97316"/>
-<text x="750" y="301.6" font-size="14" font-weight="700" fill="#c2570c" text-anchor="middle">71.0</text>
+<rect x="658" y="327.7" width="56" height="10.3" rx="6" fill="#b8bfca"/>
+<text x="686" y="319.72222222222223" font-size="14" font-weight="700" fill="#6b7280" text-anchor="middle">92.5</text>
+<rect x="722" y="252.5" width="56" height="85.5" rx="6" fill="#f97316"/>
+<text x="750" y="244.54444444444445" font-size="14" font-weight="700" fill="#c2570c" text-anchor="middle">769.1</text>
 <text x="718" y="360" font-size="13" font-weight="500" fill="#6b7280" text-anchor="middle">1회차</text>
-<rect x="818" y="247.6" width="56" height="90.4" rx="6" fill="#b8bfca"/>
-<text x="846" y="239.6" font-size="14" font-weight="700" fill="#6b7280" text-anchor="middle">226.0</text>
-<rect x="882" y="316.5" width="56" height="21.5" rx="6" fill="#f97316"/>
-<text x="910" y="308.48" font-size="14" font-weight="700" fill="#c2570c" text-anchor="middle">53.8</text>
+<rect x="818" y="327.6" width="56" height="10.4" rx="6" fill="#b8bfca"/>
+<text x="846" y="319.5777777777778" font-size="14" font-weight="700" fill="#6b7280" text-anchor="middle">93.8</text>
+<rect x="882" y="251.7" width="56" height="86.3" rx="6" fill="#f97316"/>
+<text x="910" y="243.68888888888887" font-size="14" font-weight="700" fill="#c2570c" text-anchor="middle">776.8</text>
 <text x="878" y="360" font-size="13" font-weight="500" fill="#6b7280" text-anchor="middle">2회차</text>
-<rect x="978" y="244.1" width="56" height="93.9" rx="6" fill="#b8bfca"/>
-<text x="1006" y="236.12" font-size="14" font-weight="700" fill="#6b7280" text-anchor="middle">234.7</text>
-<rect x="1042" y="309.3" width="56" height="28.7" rx="6" fill="#f97316"/>
-<text x="1070" y="301.28" font-size="14" font-weight="700" fill="#c2570c" text-anchor="middle">71.8</text>
+<rect x="978" y="327.7" width="56" height="10.3" rx="6" fill="#b8bfca"/>
+<text x="1006" y="319.73333333333335" font-size="14" font-weight="700" fill="#6b7280" text-anchor="middle">92.4</text>
+<rect x="1042" y="245.7" width="56" height="92.3" rx="6" fill="#f97316"/>
+<text x="1070" y="237.7" font-size="14" font-weight="700" fill="#c2570c" text-anchor="middle">830.7</text>
 <text x="1038" y="360" font-size="13" font-weight="500" fill="#6b7280" text-anchor="middle">3회차</text>
 <rect x="48" y="396" width="528" height="250" rx="14" fill="#fff" stroke="#e1e3e8" filter="url(#sh)"/>
-<text x="70" y="430" font-size="19" font-weight="700" fill="#111318" text-anchor="start">처리량</text>
-<text x="70" y="454" font-size="13" font-weight="400" fill="#6b7280" text-anchor="start">1초에 처리한 요청 수 (req/s) · 많을수록 좋아요</text>
+<text x="70" y="430" font-size="19" font-weight="700" fill="#111318" text-anchor="start">가벼운 쿼리: 응답 시간 p50</text>
+<text x="70" y="454" font-size="13" font-weight="400" fill="#6b7280" text-anchor="start">기본키로 한 건 읽기 (ms) · 짧을수록 좋아요</text>
 <line x1="70" y1="608" x2="554" y2="608" stroke="#e4e6ea" stroke-width="2"/>
-<rect x="82" y="595.9" width="56" height="12.1" rx="6" fill="#b8bfca"/>
-<text x="110" y="587.9" font-size="14" font-weight="700" fill="#6b7280" text-anchor="middle">72.6</text>
-<rect x="146" y="538.3" width="56" height="69.7" rx="6" fill="#f97316"/>
-<text x="174" y="530.3333333333334" font-size="14" font-weight="700" fill="#c2570c" text-anchor="middle">418.0</text>
+<rect x="82" y="583.0" width="56" height="25.0" rx="6" fill="#b8bfca"/>
+<text x="110" y="575.0" font-size="14" font-weight="700" fill="#6b7280" text-anchor="middle">3.5</text>
+<rect x="146" y="527.3" width="56" height="80.7" rx="6" fill="#f97316"/>
+<text x="174" y="519.2857142857143" font-size="14" font-weight="700" fill="#c2570c" text-anchor="middle">11.3</text>
 <text x="142" y="630" font-size="13" font-weight="500" fill="#6b7280" text-anchor="middle">1회차</text>
-<rect x="242" y="595.8" width="56" height="12.2" rx="6" fill="#b8bfca"/>
-<text x="270" y="587.8333333333334" font-size="14" font-weight="700" fill="#6b7280" text-anchor="middle">73.0</text>
-<rect x="306" y="518.2" width="56" height="89.8" rx="6" fill="#f97316"/>
-<text x="334" y="510.23333333333335" font-size="14" font-weight="700" fill="#c2570c" text-anchor="middle">538.6</text>
+<rect x="242" y="583.7" width="56" height="24.3" rx="6" fill="#b8bfca"/>
+<text x="270" y="575.7142857142857" font-size="14" font-weight="700" fill="#6b7280" text-anchor="middle">3.4</text>
+<rect x="306" y="526.6" width="56" height="81.4" rx="6" fill="#f97316"/>
+<text x="334" y="518.5714285714286" font-size="14" font-weight="700" fill="#c2570c" text-anchor="middle">11.4</text>
 <text x="302" y="630" font-size="13" font-weight="500" fill="#6b7280" text-anchor="middle">2회차</text>
-<rect x="402" y="596.0" width="56" height="12.1" rx="6" fill="#b8bfca"/>
-<text x="430" y="587.95" font-size="14" font-weight="700" fill="#6b7280" text-anchor="middle">72.3</text>
-<rect x="466" y="539.0" width="56" height="69.0" rx="6" fill="#f97316"/>
-<text x="494" y="530.95" font-size="14" font-weight="700" fill="#c2570c" text-anchor="middle">414.3</text>
+<rect x="402" y="583.7" width="56" height="24.3" rx="6" fill="#b8bfca"/>
+<text x="430" y="575.7142857142857" font-size="14" font-weight="700" fill="#6b7280" text-anchor="middle">3.4</text>
+<rect x="466" y="525.9" width="56" height="82.1" rx="6" fill="#f97316"/>
+<text x="494" y="517.8571428571429" font-size="14" font-weight="700" fill="#c2570c" text-anchor="middle">11.5</text>
 <text x="462" y="630" font-size="13" font-weight="500" fill="#6b7280" text-anchor="middle">3회차</text>
 <rect x="624" y="396" width="528" height="250" rx="14" fill="#fff" stroke="#e1e3e8" filter="url(#sh)"/>
-<text x="646" y="430" font-size="19" font-weight="700" fill="#111318" text-anchor="start">원본 호출</text>
-<text x="646" y="454" font-size="13" font-weight="400" fill="#6b7280" text-anchor="start">느린 원본 API까지 간 횟수, 요청 2,000개 중 · 적을수록 좋아요</text>
+<text x="646" y="430" font-size="19" font-weight="700" fill="#111318" text-anchor="start">가벼운 쿼리: 처리량</text>
+<text x="646" y="454" font-size="13" font-weight="400" fill="#6b7280" text-anchor="start">1초에 처리한 요청 수 (req/s) · 많을수록 좋아요</text>
 <line x1="646" y1="608" x2="1130" y2="608" stroke="#e4e6ea" stroke-width="2"/>
-<rect x="658" y="508.0" width="56" height="100.0" rx="6" fill="#b8bfca"/>
-<text x="686" y="500.0" font-size="14" font-weight="700" fill="#6b7280" text-anchor="middle">2,000</text>
-<text x="750" y="600.0" font-size="14" font-weight="700" fill="#c2570c" text-anchor="middle">0</text>
+<rect x="658" y="513.5" width="56" height="94.5" rx="6" fill="#b8bfca"/>
+<text x="686" y="505.4866666666667" font-size="14" font-weight="700" fill="#6b7280" text-anchor="middle">1,417.7</text>
+<rect x="722" y="555.7" width="56" height="52.3" rx="6" fill="#f97316"/>
+<text x="750" y="547.6733333333333" font-size="14" font-weight="700" fill="#c2570c" text-anchor="middle">784.9</text>
 <text x="718" y="630" font-size="13" font-weight="500" fill="#6b7280" text-anchor="middle">1회차</text>
-<rect x="818" y="508.0" width="56" height="100.0" rx="6" fill="#b8bfca"/>
-<text x="846" y="500.0" font-size="14" font-weight="700" fill="#6b7280" text-anchor="middle">2,000</text>
-<text x="910" y="600.0" font-size="14" font-weight="700" fill="#c2570c" text-anchor="middle">0</text>
+<rect x="818" y="517.7" width="56" height="90.3" rx="6" fill="#b8bfca"/>
+<text x="846" y="509.68000000000006" font-size="14" font-weight="700" fill="#6b7280" text-anchor="middle">1,354.8</text>
+<rect x="882" y="555.1" width="56" height="52.9" rx="6" fill="#f97316"/>
+<text x="910" y="547.0733333333334" font-size="14" font-weight="700" fill="#c2570c" text-anchor="middle">793.9</text>
 <text x="878" y="630" font-size="13" font-weight="500" fill="#6b7280" text-anchor="middle">2회차</text>
-<rect x="978" y="508.0" width="56" height="100.0" rx="6" fill="#b8bfca"/>
-<text x="1006" y="500.0" font-size="14" font-weight="700" fill="#6b7280" text-anchor="middle">2,000</text>
-<text x="1070" y="600.0" font-size="14" font-weight="700" fill="#c2570c" text-anchor="middle">0</text>
+<rect x="978" y="517.4" width="56" height="90.6" rx="6" fill="#b8bfca"/>
+<text x="1006" y="509.35333333333335" font-size="14" font-weight="700" fill="#6b7280" text-anchor="middle">1,359.7</text>
+<rect x="1042" y="556.0" width="56" height="52.0" rx="6" fill="#f97316"/>
+<text x="1070" y="548.0466666666666" font-size="14" font-weight="700" fill="#c2570c" text-anchor="middle">779.3</text>
 <text x="1038" y="630" font-size="13" font-weight="500" fill="#6b7280" text-anchor="middle">3회차</text>
 <rect x="48" y="668" width="1104" height="48" rx="14" fill="#fff0e4" stroke="#f97316" filter="url(#sh)"/>
-<text x="600" y="698" font-size="15" text-anchor="middle" fill="#6b7280"><tspan font-weight="700" fill="#c2570c">캐시를 켜면</tspan>  p50은 약 6~8배 빠르고, 처리량은 약 6~7배, 원본 호출은 2,000번에서 0번이 돼요</text>
-<text x="48" y="744" font-size="14" font-weight="400" fill="#6b7280" text-anchor="start">첫 요청 100개는 둘 다 원본까지 가서 이득이 없어요 (p50 끔 225.1~234.5ms, 켬 232.4~242.0ms). 이득은 같은 키를 다시 읽을 때 나와요.</text>
-<text x="48" y="770" font-size="13" font-weight="400" fill="#6b7280" text-anchor="start">Windows 11, 논리 코어 14개, Python 3.14.7에서 잰 값이에요. 다른 컴퓨터에서는 절대값이 달라지고 방향만 같아요.</text>
+<text x="600" y="698" font-size="15" text-anchor="middle" fill="#6b7280"><tspan font-weight="700" fill="#c2570c">무거운 쿼리는 p50 약 11~13배 빨라지고, 가벼운 쿼리는 오히려 느려요</tspan>  DB 호출은 둘 다 2,000 → 0</text>
+<text x="48" y="744" font-size="14" font-weight="400" fill="#6b7280" text-anchor="start">가벼운 쿼리는 DB가 3.4ms에 끝내는데, 캐시를 켜면 Mini Redis까지 HTTP로 한 번 더 왕복해야 해서 느려졌어요(원인은 짐작이에요).</text>
+<text x="48" y="770" font-size="13" font-weight="400" fill="#6b7280" text-anchor="start">macOS(Apple Silicon, 코어 10개), Python 3.13, PostgreSQL 16(Docker, 같은 컴퓨터)에서 잰 값이에요. 다른 컴퓨터에서는 절대값이 달라지고 방향만 같아요.</text>
 </svg>
