@@ -173,7 +173,7 @@ def servers(use_cache):
                 log.close()
 
 
-def run_phase(sample_url, origin_url, ids, concurrency):
+def run_phase(sample_url, origin_url, ids, concurrency, calls_key="calls"):
     """ids를 스레드 concurrency개가 나눠 요청하고 그 단계의 통계와 부가 정보를 돌려준다."""
     httpx.post(f"{sample_url}/stats/reset", timeout=5).raise_for_status()
     httpx.post(f"{origin_url}/stats/reset", timeout=5).raise_for_status()
@@ -225,7 +225,7 @@ def run_phase(sample_url, origin_url, ids, concurrency):
     errors = sum(e for _, e, _ in results)
     tally = sum((c for _, _, c in results), Counter())
     stats = httpx.get(f"{sample_url}/stats", timeout=5).json()
-    origin_calls = httpx.get(f"{origin_url}/stats", timeout=5).json()["calls"]
+    origin_calls = httpx.get(f"{origin_url}/stats", timeout=5).json()[calls_key]
     summary = summarize(latencies, errors, stats["hits"], stats["misses"], wall_s)
     summary.update(
         wall_s=wall_s, xcache=dict(tally), origin_calls=origin_calls,

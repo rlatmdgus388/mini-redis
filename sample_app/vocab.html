@@ -230,7 +230,7 @@
     <table><thead><tr><th>결과</th><th>시간</th><th></th></tr></thead><tbody id="log"></tbody></table>
     <div class="empty" id="logEmpty">아직 없어요.</div>
 
-    <p class="foot">DB 200ms는 느린 DB를 흉내 낸 값이에요. 단어를 추가·삭제하거나 암기 상태를 바꾸면 DB에 쓰고 캐시 키를 지운 뒤 목록을 다시 불러와요.</p>
+    <p class="foot" id="foot"></p>
   </aside>
 </div>
 
@@ -308,6 +308,7 @@ function renderList() {
     const m = el("div", "m" + (viewIdx === 1 ? " blur" : ""), w.meaning);
     if (viewIdx === 1) m.onclick = () => m.classList.toggle("blur");
     card.append(head, m);
+    if (w.reviews != null) card.append(el("div", "m", "복습 " + w.reviews.toLocaleString() + "회"));
     box.append(card);
   }
 }
@@ -340,6 +341,10 @@ async function refresh() {
     const s = await api("/api/state");
     $("hits").textContent = s.hits; $("misses").textContent = s.misses; $("dbreads").textContent = s.db_reads;
     const t = s.hits + s.misses; $("rate").textContent = t ? Math.round(s.hits / t * 100) + "%" : "-";
+    $("foot").textContent = (s.db === "postgres"
+      ? "DB는 진짜 PostgreSQL이에요. 목록을 읽을 때 복습 기록 200만 건을 집계해 단어별 복습 횟수를 계산해요. "
+      : "DB 200ms는 느린 DB를 흉내 낸 값이에요. ")
+      + "단어를 추가·삭제하거나 암기 상태를 바꾸면 DB에 쓰고 캐시 키를 지운 뒤 목록을 다시 불러와요.";
     $("cacheOn").checked = s.use_cache; $("keyCount").textContent = s.keys.length;
     const body = $("keys"); body.replaceChildren();
     for (const k of s.keys) { const tr = el("tr"); tr.append(el("td", null, k.key), el("td", null, k.ttl < 0 ? "무기한" : k.ttl)); body.append(tr); }
