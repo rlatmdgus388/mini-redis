@@ -1,18 +1,25 @@
 """단어장 앱 시연 서버예요.
 
-"단어장 메뉴에 들어갈 때마다 DB에서 목록을 다시 읽던" 상황을 그대로 보여 줘요.
+두 가지를 서로 다른 방식으로 빠르게 해요.
+  - 단어장 목록: 서버는 DB에서 그냥 읽어 줘요. 빠르게 하는 일은 브라우저(localStorage)가 맡아요(vocab.html).
+  - 학습 통계(홈의 "오늘의 학습 현황"): 학습 기록을 집계해서 만드는 값이라 Mini Redis에 cache-aside로 캐싱해요.
+    학습을 기록하면 DB에 쓴 뒤 통계 키를 지워서, 다음에 홈을 열 때 다시 집계해요.
+
 DB는 둘 중 하나예요.
-  - memory:   메모리에 든 단어 목록을 읽을 때 200ms를 기다려요(느린 DB 흉내, PostgreSQL이 없을 때).
-  - postgres: 진짜 PostgreSQL이에요. 목록을 읽을 때 복습 기록 200만 건을 집계해 단어별 복습 횟수를 같이 계산해요.
-그 앞에 Mini Redis를 cache-aside로 붙여요.
-단어를 추가하거나 지우면 DB에 쓴 뒤 캐시 키를 지워서, 다음 진입에 최신 목록이 보이게 해요.
+  - memory:   메모리에 든 기록을 집계해요. 통계를 읽을 때 delay_ms를 기다려 느린 DB를 흉내 내요(PostgreSQL이 없을 때).
+  - postgres: 진짜 PostgreSQL이에요. 학습 기록(vocab_study_events)을 그때그때 집계해요.
+
+DB_RTT_MS를 주면 "Redis는 앱 서버 가까이에, DB는 그보다 멀리 있다"고 가정하고 앱이 DB에 읽고 쓸 때마다 그만큼의 왕복 시간을 더해요
+(PostgreSQL일 때만, 기본 0 = 더하지 않음). Redis 호출에는 더하지 않아요. 이것만 대기로 흉내 낸 값이에요.
+
+"오늘"은 한국 시간(UTC+9) 기준이에요. memory는 주입한 시계(epoch ms)를, postgres는 DB의 now()를 써요.
 """
 
 import json
 import logging
 import os
-import threading
 import queue
+import threading
 import time
 from contextlib import contextmanager
 from pathlib import Path
@@ -25,13 +32,15 @@ from fastapi.responses import HTMLResponse, JSONResponse
 from pydantic import BaseModel, Field
 
 from mini_redis import config
+from mini_redis.clock import system_clock_ms
 
 logger = logging.getLogger(__name__)
 
 _PAGE = Path(__file__).with_name("vocab.html")
 _PREFIX = "vocab:"
-_USER = "demo"
-_KEY = _PREFIX + _USER
+_STATS_KEY = _PREFIX + "stats:demo"
+_DAY_MS = 86_400_000
+_KST_OFFSET_MS = 9 * 3_600_000
 _SEED = [
     ("management", "[명사] 경영, 관리", True),
     ("located", "[동사] 위치하다", True),
@@ -39,15 +48,33 @@ _SEED = [
     ("entire", "[형용사] 전체의, 완전한", False),
     ("impact", "[명사] 영향, 충격", True),
 ]
+# 처음 상태의 학습 기록: (며칠 전, 그날 학습 횟수). 어제까지 4일 연속이라 "연속 학습 4일"에서 시작해요.
+_HISTORY = [(1, 8), (2, 6), (3, 7), (4, 5)] + [(d, 4) for d in range(6, 31, 2)]
+_STUDY_SECONDS = 8  # 시드 기록 한 건의 학습 시간(초)
+
+
+def _day(epoch_ms: int) -> int:
+    """epoch ms를 한국 시간 기준 날짜 번호로 바꿔요."""
+    return (epoch_ms + _KST_OFFSET_MS) // _DAY_MS
+
+
+def _streak(days: set, today: int) -> int:
+    """오늘(없으면 어제)부터 거꾸로 이어진 학습일 수예요."""
+    day = today if today in days else today - 1
+    count = 0
+    while day in days:
+        count += 1
+        day -= 1
+    return count
 
 
 class MemoryWords:
-    """메모리에 든 단어 목록. 읽을 때 delay_ms만큼 기다려서 느린 DB를 흉내 내요."""
+    """메모리에 든 단어와 학습 기록. 통계를 읽을 때 delay_ms만큼 기다려서 느린 DB를 흉내 내요."""
 
     kind = "memory"
 
-    def __init__(self, delay_ms: int, sleep: Callable[[float], None]):
-        self._delay_ms, self._sleep = delay_ms, sleep
+    def __init__(self, delay_ms: int, sleep: Callable[[float], None], now_ms: Callable[[], int] = system_clock_ms):
+        self._delay_ms, self._sleep, self._now_ms = delay_ms, sleep, now_ms
         self._lock = threading.Lock()
         self.reset()
 
@@ -57,12 +84,17 @@ class MemoryWords:
                 {"id": i + 1, "word": w, "meaning": m, "memorized": done} for i, (w, m, done) in enumerate(_SEED)
             ]
             self._next_id = len(_SEED) + 1
+            today = _day(self._now_ms())
+            # 기록 한 건: (날짜 번호, 단어 번호, 학습 시간 초)
+            self._events = [
+                (today - ago, 1 + n % len(_SEED), _STUDY_SECONDS) for ago, times in _HISTORY for n in range(times)
+            ]
             self.reads = 0
+            self.list_reads = 0
 
-    def read(self) -> list:
-        self._sleep(self._delay_ms / 1000)
+    def words(self) -> list:
         with self._lock:
-            self.reads += 1
+            self.list_reads += 1
             return [dict(w) for w in self._words]
 
     def add(self, word: str, meaning: str) -> dict:
@@ -90,18 +122,43 @@ class MemoryWords:
         with self._lock:
             return len(self._words)
 
+    def study(self, word_id: int, seconds: int) -> bool:
+        with self._lock:
+            if not any(w["id"] == word_id for w in self._words):
+                return False
+            self._events.append((_day(self._now_ms()), word_id, seconds))
+            return True
 
-STUDY_LOGS = 2_000_000
-_LIST_SQL = (
-    "SELECT w.id, w.word, w.meaning, w.memorized, coalesce(c.n, 0) AS reviews "
-    "FROM vocab_words w "
-    "LEFT JOIN (SELECT word_id, count(*) AS n FROM vocab_study_logs GROUP BY word_id) c ON c.word_id = w.id "
-    "ORDER BY w.id"
+    def stats(self) -> dict:
+        """오늘 학습 단어 수, 오늘 학습 시간(초), 연속 학습일. 읽을 때마다 기록을 처음부터 집계해요."""
+        self._sleep(self._delay_ms / 1000)
+        with self._lock:
+            self.reads += 1
+            today = _day(self._now_ms())
+            todays = [e for e in self._events if e[0] == today]
+            return {
+                "words_today": len({e[1] for e in todays}),
+                "seconds_today": sum(e[2] for e in todays),
+                "streak_days": _streak({e[0] for e in self._events}, today),
+            }
+
+
+_KST = "'Asia/Seoul'"
+_TODAY_SQL = (
+    "SELECT count(DISTINCT word_id), coalesce(sum(seconds), 0) FROM vocab_study_events "
+    f"WHERE (studied_at AT TIME ZONE {_KST})::date = (now() AT TIME ZONE {_KST})::date"
+)
+# 학습한 날짜들을 연속 구간으로 묶어(날짜 - 순번이 같으면 같은 구간), 오늘(없으면 어제)이 속한 구간의 길이를 센다.
+_STREAK_SQL = (
+    f"WITH d AS (SELECT DISTINCT (studied_at AT TIME ZONE {_KST})::date AS day FROM vocab_study_events), "
+    "runs AS (SELECT day, day - (row_number() OVER (ORDER BY day))::int AS grp FROM d) "
+    "SELECT count(*) FROM runs WHERE grp = ("
+    f"SELECT grp FROM runs WHERE day >= (now() AT TIME ZONE {_KST})::date - 1 ORDER BY day DESC LIMIT 1)"
 )
 
 
 class PgWords:
-    """진짜 PostgreSQL. 목록을 읽을 때 복습 기록 200만 건을 집계해 단어별 복습 횟수를 계산해요(인덱스 없음)."""
+    """진짜 PostgreSQL. 학습 통계는 학습 기록 테이블을 읽을 때마다 집계해요."""
 
     kind = "postgres"
 
@@ -113,6 +170,7 @@ class PgWords:
             self._pool.put(psycopg.connect(dsn, autocommit=True))
         self._lock = threading.Lock()
         self.reads = 0
+        self.list_reads = 0
         self._ensure_schema()
         self.reset()
 
@@ -131,17 +189,13 @@ class PgWords:
                 "meaning text NOT NULL DEFAULT '', memorized boolean NOT NULL DEFAULT false)"
             )
             c.execute("CREATE SEQUENCE IF NOT EXISTS vocab_words_id_seq")
+            c.execute("DROP TABLE IF EXISTS vocab_study_logs")  # 예전 시연이 만든 200만 건 복습 기록 테이블
             c.execute(
-                "CREATE TABLE IF NOT EXISTS vocab_study_logs "
-                "(id serial PRIMARY KEY, word_id int NOT NULL, studied_at timestamptz NOT NULL DEFAULT now())"
+                "CREATE TABLE IF NOT EXISTS vocab_study_events "
+                "(id serial PRIMARY KEY, word_id int NOT NULL, seconds int NOT NULL, "
+                "studied_at timestamptz NOT NULL DEFAULT now())"
             )
-            if c.execute("SELECT NOT EXISTS (SELECT 1 FROM vocab_study_logs)").fetchone()[0]:
-                c.execute(
-                    "INSERT INTO vocab_study_logs (word_id) SELECT 1 + floor(random() * %s)::int "
-                    "FROM generate_series(1, %s)",
-                    (len(_SEED), STUDY_LOGS),
-                )
-                c.execute("ANALYZE vocab_study_logs")
+            c.execute("CREATE INDEX IF NOT EXISTS vocab_study_events_at ON vocab_study_events (studied_at)")
 
     def reset(self) -> None:
         with self._conn() as c:
@@ -149,16 +203,24 @@ class PgWords:
             for i, (w, m, done) in enumerate(_SEED):
                 c.execute("INSERT INTO vocab_words VALUES (%s, %s, %s, %s)", (i + 1, w, m, done))
             c.execute("SELECT setval('vocab_words_id_seq', %s)", (len(_SEED),))
+            c.execute("TRUNCATE vocab_study_events")
+            for ago, times in _HISTORY:
+                c.execute(
+                    "INSERT INTO vocab_study_events (word_id, seconds, studied_at) "
+                    "SELECT 1 + mod(n, %s), %s, now() - make_interval(days => %s) FROM generate_series(0, %s) n",
+                    (len(_SEED), _STUDY_SECONDS, ago, times - 1),
+                )
         with self._lock:
             self.reads = 0
+            self.list_reads = 0
 
-    def read(self) -> list:
+    def words(self) -> list:
         with self._conn() as c:
-            cur = c.execute(_LIST_SQL)
+            cur = c.execute("SELECT id, word, meaning, memorized FROM vocab_words ORDER BY id")
             names = [d.name for d in cur.description]
             rows = [dict(zip(names, r)) for r in cur.fetchall()]
         with self._lock:
-            self.reads += 1
+            self.list_reads += 1
         return rows
 
     def add(self, word: str, meaning: str) -> dict:
@@ -183,6 +245,49 @@ class PgWords:
         with self._conn() as c:
             return c.execute("SELECT count(*) FROM vocab_words").fetchone()[0]
 
+    def study(self, word_id: int, seconds: int) -> bool:
+        with self._conn() as c:
+            return (
+                c.execute(
+                    "INSERT INTO vocab_study_events (word_id, seconds) "
+                    "SELECT %s, %s WHERE EXISTS (SELECT 1 FROM vocab_words WHERE id = %s)",
+                    (word_id, seconds, word_id),
+                ).rowcount
+                > 0
+            )
+
+    def stats(self) -> dict:
+        with self._conn() as c:
+            words_today, seconds_today = c.execute(_TODAY_SQL).fetchone()
+            streak = c.execute(_STREAK_SQL).fetchone()[0]
+        with self._lock:
+            self.reads += 1
+        return {"words_today": words_today, "seconds_today": int(seconds_today), "streak_days": streak}
+
+
+class RemoteDb:
+    """DB(words)를 감싸서, 앱이 DB에 읽고 쓰는 호출마다 왕복 시간(rtt_ms)을 더해요.
+
+    화면 상태 조회용 count와 초기화(reset)에는 더하지 않아요. 나머지(kind, reads 등)는 안쪽 DB 것을 그대로 보여줘요.
+    """
+
+    _SLOW = ("words", "add", "delete", "set_memorized", "study", "stats")
+
+    def __init__(self, inner, rtt_ms: float, sleep: Callable[[float], None] = time.sleep):
+        self._inner, self._sleep = inner, sleep
+        self.rtt_ms = rtt_ms
+
+    def __getattr__(self, name):
+        attr = getattr(self._inner, name)
+        if name not in self._SLOW:
+            return attr
+
+        def delayed(*args, **kwargs):
+            self._sleep(self.rtt_ms / 1000)
+            return attr(*args, **kwargs)
+
+        return delayed
+
 
 class WordBody(BaseModel):
     word: str = Field(min_length=1, max_length=50)
@@ -191,6 +296,11 @@ class WordBody(BaseModel):
 
 class MemorizedBody(BaseModel):
     memorized: bool
+
+
+class StudyBody(BaseModel):
+    word_id: int
+    seconds: int = Field(default=0, ge=0, le=3600)
 
 
 class CacheModeBody(BaseModel):
@@ -203,25 +313,22 @@ def create_vocab_app(
     delay_ms: int = config.ORIGIN_DELAY_MS,
     sleep: Callable[[float], None] = time.sleep,
     words=None,
+    now_ms: Callable[[], int] = system_clock_ms,
 ) -> FastAPI:
-    """redis 클라이언트와 DB(words)는 밖에서 끼워 넣어요. words가 없으면 sleep으로 느린 DB를 흉내 내요(테스트는 가짜 sleep을 써요)."""
+    """redis 클라이언트와 DB(words)는 밖에서 끼워 넣어요. words가 없으면 메모리 DB를 써요(테스트는 가짜 sleep과 시계를 써요)."""
     app = FastAPI(title="단어장 시연")
     lock = threading.Lock()
-    db = words if words is not None else MemoryWords(delay_ms, sleep)
+    db = words if words is not None else MemoryWords(delay_ms, sleep, now_ms)
     stats = {"hits": 0, "misses": 0}
     mode = {"use_cache": True}
 
     def error(message: str, code: str, status: int) -> JSONResponse:
         return JSONResponse(status_code=status, content={"error": code, "message": message})
 
-    def read_db() -> list:
-        """DB에서 목록을 읽어요. 읽은 횟수를 세요."""
-        return db.read()
-
-    def invalidate() -> Optional[JSONResponse]:
-        """쓰기 뒤에 캐시 키를 지워요. 실패하면 낡은 목록이 TTL까지 남을 수 있어서 알려요."""
+    def invalidate_stats() -> Optional[JSONResponse]:
+        """학습을 기록한 뒤 통계 캐시 키를 지워요. 실패하면 낡은 통계가 TTL까지 남을 수 있어서 알려요."""
         try:
-            res = redis.delete("/keys/" + quote(_KEY, safe=""))
+            res = redis.delete("/keys/" + quote(_STATS_KEY, safe=""))
         except httpx.HTTPError as exc:
             return error(f"DB에는 반영됐지만 캐시를 못 지웠어요: {exc}", "CACHE_ERROR", 502)
         if res.status_code != 200:
@@ -233,20 +340,25 @@ def create_vocab_app(
         return _PAGE.read_text(encoding="utf-8")
 
     @app.get("/api/words")
-    def list_words():
-        """단어장 메뉴에 들어갈 때 부르는 목록 조회. cache는 HIT / MISS / BYPASS예요."""
-        started = time.perf_counter()
-        path = "/keys/" + quote(_KEY, safe="")
+    def list_words() -> dict:
+        """단어 목록. Mini Redis를 거치지 않고 DB에서 읽어요(브라우저가 localStorage에 저장해 둬요)."""
+        return {"words": db.words()}
 
-        def done(words: list, label: str) -> dict:
+    @app.get("/api/stats")
+    def get_stats():
+        """홈 화면의 학습 통계. cache는 HIT / MISS / BYPASS예요."""
+        started = time.perf_counter()
+        path = "/keys/" + quote(_STATS_KEY, safe="")
+
+        def done(value: dict, label: str) -> dict:
             ms = round((time.perf_counter() - started) * 1000, 1)
-            return {"words": words, "cache": label, "ms": ms}
+            return {"stats": value, "cache": label, "ms": ms}
 
         if not mode["use_cache"]:
-            words = read_db()
+            value = db.stats()
             with lock:
                 stats["misses"] += 1
-            return done(words, "BYPASS")
+            return done(value, "BYPASS")
 
         try:
             cached = redis.get(path)
@@ -254,51 +366,55 @@ def create_vocab_app(
             return error(f"cache request failed: {exc}", "CACHE_ERROR", 502)
         if cached.status_code == 200:
             try:
-                words = json.loads(cached.json()["value"])
+                value = json.loads(cached.json()["value"])
             except (ValueError, KeyError, TypeError):
                 return error("cache returned an invalid value", "CACHE_ERROR", 502)
             with lock:
                 stats["hits"] += 1
-            return done(words, "HIT")
+            return done(value, "HIT")
         if cached.status_code != 404:
             return error(f"cache returned {cached.status_code}", "CACHE_ERROR", 502)
 
-        words = read_db()
+        value = db.stats()
         try:
-            stored = redis.put(path, json={"value": json.dumps(words, ensure_ascii=False), "ttl": ttl_s})
+            stored = redis.put(path, json={"value": json.dumps(value), "ttl": ttl_s})
             if stored.status_code != 200:
                 logger.warning("cache put returned %s", stored.status_code)
         except httpx.HTTPError as exc:
             logger.warning("cache put failed: %s", exc)
         with lock:
             stats["misses"] += 1
-        return done(words, "MISS")
+        return done(value, "MISS")
+
+    @app.post("/api/study")
+    def study(body: StudyBody):
+        """단어 하나를 학습했다고 기록해요. DB에 쓴 뒤 통계 캐시 키를 지워요."""
+        if not db.study(body.word_id, body.seconds):
+            return error(f"단어 {body.word_id}번이 없어요", "WORD_NOT_FOUND", 404)
+        failed = invalidate_stats()
+        return failed or {"studied": True, "invalidated": True}
 
     @app.post("/api/words")
     def add_word(body: WordBody):
-        word = db.add(body.word.strip(), body.meaning.strip())
-        failed = invalidate()
-        return failed or {"word": word, "invalidated": True}
+        return {"word": db.add(body.word.strip(), body.meaning.strip())}
 
     @app.delete("/api/words/{word_id}")
     def delete_word(word_id: int):
         if not db.delete(word_id):
             return error(f"단어 {word_id}번이 없어요", "WORD_NOT_FOUND", 404)
-        failed = invalidate()
-        return failed or {"deleted": True, "invalidated": True}
+        return {"deleted": True}
 
     @app.patch("/api/words/{word_id}")
     def set_memorized(word_id: int, body: MemorizedBody):
-        """암기 완료/미완료를 바꿔요. 목록 내용이 달라지니 캐시 키도 지워요."""
+        """암기 완료/미완료를 바꿔요."""
         word = db.set_memorized(word_id, body.memorized)
         if word is None:
             return error(f"단어 {word_id}번이 없어요", "WORD_NOT_FOUND", 404)
-        failed = invalidate()
-        return failed or {"word": word, "invalidated": True}
+        return {"word": word}
 
     @app.get("/api/state")
     def state():
-        """캐시에 든 키와 남은 TTL, 집계, 원본(DB)을 읽은 횟수를 모아서 돌려줘요."""
+        """캐시에 든 키와 남은 TTL, 통계 조회 집계, 통계를 DB에서 읽은 횟수와 목록을 DB에서 읽은 횟수를 모아서 돌려줘요."""
         try:
             names = redis.get("/keys", params={"prefix": _PREFIX}).json()["keys"]
             keys = []
@@ -313,7 +429,9 @@ def create_vocab_app(
                 "hits": stats["hits"],
                 "misses": stats["misses"],
                 "db_reads": db.reads,
+                "list_reads": db.list_reads,
                 "db": db.kind,
+                "db_rtt_ms": getattr(db, "rtt_ms", 0),
                 "words": db.count(),
                 "use_cache": mode["use_cache"],
                 "keys": keys,
@@ -321,14 +439,14 @@ def create_vocab_app(
 
     @app.post("/api/cache-mode")
     def cache_mode(body: CacheModeBody):
-        """캐시를 끄면 매번 DB를 읽어요(캐시를 쓰기 전 방식과 비교하는 용도)."""
+        """통계 캐시를 끄면 매번 DB에서 집계해요(캐시를 쓰기 전 방식과 비교하는 용도)."""
         with lock:
             mode["use_cache"] = body.enabled
         return {"use_cache": body.enabled}
 
     @app.post("/api/reset")
     def reset():
-        """단어장, 집계, 캐시 키를 모두 처음 상태로 되돌려요."""
+        """단어장, 학습 기록, 집계, 캐시 키를 모두 처음 상태로 되돌려요."""
         db.reset()
         with lock:
             stats["hits"] = stats["misses"] = 0
@@ -345,7 +463,9 @@ def create_vocab_app(
 def _build() -> FastAPI:
     redis = httpx.Client(base_url=os.environ.get("MINI_REDIS_URL", "http://127.0.0.1:8000"))
     if os.environ.get("VOCAB_DB") == "pg":
-        return create_vocab_app(redis, words=PgWords(os.environ.get("PG_DSN", "postgresql://postgres:bench@127.0.0.1:5433/bench")))
+        words = PgWords(os.environ.get("PG_DSN", "postgresql://postgres:bench@127.0.0.1:5433/bench"))
+        rtt_ms = float(os.environ.get("DB_RTT_MS", "0"))
+        return create_vocab_app(redis, words=RemoteDb(words, rtt_ms) if rtt_ms > 0 else words)
     return create_vocab_app(redis)
 
 
