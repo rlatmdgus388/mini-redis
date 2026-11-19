@@ -51,6 +51,12 @@ python -m bench.db_cache_effect --repeat 3
 
 결과는 [results/db_cache_effect.md](results/db_cache_effect.md)에 있다.
 
+동시 요청 1개로 재면(캐시 경로 자체의 비용과 동시 요청이 몰릴 때의 지연을 가를 때 쓴다) 결과는 [results/db_cache_effect_concurrency1.md](results/db_cache_effect_concurrency1.md)에 있다.
+
+```bash
+python -m bench.db_cache_effect --requests 1000 --concurrency 1 --repeat 3 --out bench/results/db_cache_effect_concurrency1.md
+```
+
 - **light**: 기본키로 사용자 한 명 읽기. **heavy**: 주문 200만 건에서 사용자 한 명의 카테고리별 합계(`user_id` 인덱스 없음).
 - 모드마다 프로세스 두 개(Mini Redis, 샘플 앱 `sample_app.pg_app`)를 새로 띄운다. 요청 단계, 동시성, 반복, 통계는 `cache_effect`와 같다.
 - 한계: DB와 앱이 같은 컴퓨터라 네트워크 지연이 거의 없고, 쿼리 두 종류만 잰다. 쿼리가 가벼우면 캐시가 오히려 느릴 수 있다(결과 파일 참고).

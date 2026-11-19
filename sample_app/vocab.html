@@ -87,6 +87,31 @@
   .deck .pct { text-align:right; font-size:17px; font-weight:700; color:var(--orange); }
   .deck .track { width:84px; height:8px; border-radius:4px; background:#f1f2f4; margin-top:8px; overflow:hidden; }
   .deck .track i { display:block; height:100%; background:var(--orange); border-radius:4px; }
+  .studybody { flex:1; min-height:0; overflow-y:auto; padding:6px 16px 16px; }
+  .studyhead { display:flex; align-items:center; gap:14px; padding:6px 4px 26px; }
+  .studyhead .logo { width:46px; height:46px; border-radius:14px; background:var(--orange-soft); color:var(--orange); display:flex; align-items:center; justify-content:center; font-size:24px; }
+  .studyhead h1 { font-size:24px; font-weight:700; margin:0; letter-spacing:-.3px; }
+  .modes { display:grid; grid-template-columns:1fr 1fr; gap:14px; margin-bottom:26px; }
+  .mode { border:1px solid #e1e3e8; border-radius:14px; background:#fff; padding:clamp(22px, 4.6vh, 46px) 8px; display:flex; flex-direction:column; align-items:center; gap:14px; font:inherit; font-size:15px; font-weight:700; color:var(--text); cursor:pointer; }
+  .mode svg.i { width:42px; height:42px; color:var(--orange); stroke-width:1.6; }
+  .recenthead { display:flex; justify-content:space-between; align-items:baseline; margin:0 4px 12px; }
+  .recenthead b { font-size:15px; font-weight:700; }
+  .recenthead button { border:0; background:none; font:inherit; font-size:13.5px; color:var(--text); cursor:pointer; padding:0; }
+  .rec { display:flex; align-items:center; justify-content:space-between; gap:12px; padding:clamp(16px, 2.8vh, 24px) 18px; margin-bottom:14px; }
+  .rec .t { font-size:15px; font-weight:700; }
+  .rec .s { font-size:13px; color:var(--muted); margin-top:5px; display:flex; align-items:center; gap:6px; }
+  .rec .clk { display:inline-flex; align-items:center; gap:3px; }
+  .rec .pct { font-size:17px; font-weight:700; color:var(--orange); text-align:right; }
+  .rec .lbl { font-size:14px; color:var(--muted); text-align:right; margin-top:2px; }
+  .flashbody { flex:1; min-height:0; display:flex; flex-direction:column; padding:8px 16px 16px; gap:16px; }
+  .fcard { flex:1; min-height:0; border:1px solid #e1e3e8; border-radius:18px; background:#fff; box-shadow:0 2px 6px rgba(16,24,40,.08); display:flex; flex-direction:column; align-items:center; justify-content:center; gap:14px; text-align:center; padding:20px; cursor:pointer; user-select:none; }
+  .fcard .fw { font-size:30px; font-weight:700; word-break:break-word; }
+  .fcard .fm { font-size:18px; color:#374151; visibility:hidden; }
+  .fcard.flip .fm { visibility:visible; }
+  .fcard .fh { font-size:12.5px; color:var(--muted); }
+  .fbtns { display:flex; gap:10px; }
+  .fbtns button { flex:1; height:50px; border-radius:11px; border:1px solid #d9dce1; background:#fff; font:inherit; font-size:15px; font-weight:600; color:var(--text); cursor:pointer; }
+  .fbtns button.go { background:var(--orange); border-color:var(--orange); color:#fff; }
   .placeholder { margin:auto; text-align:center; color:var(--muted); padding:0 30px; }
   .placeholder b { display:block; font-size:17px; color:var(--text); margin-bottom:6px; }
   .loading { margin:auto; color:var(--muted); font-size:14px; text-align:center; padding:30px 0; }
@@ -118,6 +143,7 @@
   .badge { display:inline-block; min-width:54px; text-align:center; padding:1px 8px; border-radius:999px; font-size:11px; font-weight:700; }
   .HIT { background:var(--hit-bg); color:var(--hit); }
   .MISS, .BYPASS { background:var(--miss-bg); color:var(--miss); }
+  .LOCAL, .WRITE { background:#ebedf0; color:#5d6471; }
   .bar { height:9px; border-radius:5px; min-width:2px; background:var(--miss); }
   .bar.hit { background:var(--hit); }
   .empty { color:var(--panel-muted); font-size:13px; padding:6px 0; }
@@ -150,9 +176,9 @@
           <div class="panel today">
             <h2><i data-i="trend"></i>오늘의 학습 현황</h2>
             <div class="nums">
-              <div><div class="n">0</div><div class="l">학습 단어</div></div>
-              <div><div class="n">0<small>분</small></div><div class="l">학습 시간</div></div>
-              <div><div class="n">0<small>일</small></div><div class="l">연속 학습</div></div>
+              <div><div class="n" id="stWords">0</div><div class="l">학습 단어</div></div>
+              <div><div class="n"><span id="stMin">0</span><small>분</small></div><div class="l">학습 시간</div></div>
+              <div><div class="n"><span id="stStreak">0</span><small>일</small></div><div class="l">연속 학습</div></div>
             </div>
           </div>
 
@@ -165,7 +191,32 @@
 
       <section class="view" id="view-other">
         <header class="top"><div class="grow"><h1 id="otherTitle">-</h1></div></header>
-        <div class="placeholder"><b>준비 중</b>시연에서는 쓰지 않는 메뉴예요.<br>단어장 탭으로 돌아가면 목록을 다시 불러와요.</div>
+        <div class="placeholder"><b>준비 중</b>시연에서는 쓰지 않는 메뉴예요.</div>
+      </section>
+
+      <section class="view" id="view-study">
+        <div class="studybody">
+          <div class="studyhead"><span class="logo"><i data-i="cap"></i></span><h1>학습하기</h1></div>
+          <div class="modes">
+            <button class="mode" id="mFlash"><i data-i="flash"></i>플래시카드</button>
+            <button class="mode" data-soon="1"><i data-i="play"></i>자동재생</button>
+            <button class="mode" data-soon="1"><i data-i="pencil"></i>받아쓰기</button>
+            <button class="mode" data-soon="1"><i data-i="quiz"></i>객관식 퀴즈</button>
+          </div>
+          <div class="recenthead"><b>최근 학습 기록</b><button id="moreRec">더보기</button></div>
+          <div id="records"></div>
+        </div>
+      </section>
+
+      <section class="view" id="view-flash">
+        <header class="top">
+          <span class="back" id="flashBack" style="cursor:pointer"><i data-i="arrow-left"></i></span>
+          <div class="grow"><h1>플래시카드</h1><div class="sub" id="flashSub">-</div></div>
+        </header>
+        <div class="flashbody">
+          <div class="fcard" id="fcard"><div class="fw" id="fw"></div><div class="fm" id="fm"></div><div class="fh">눌러서 뜻 보기</div></div>
+          <div class="fbtns"><button id="fNo">모르겠어요</button><button class="go" id="fYes">외웠어요</button></div>
+        </div>
       </section>
 
       <section class="view" id="view-vocab">
@@ -195,7 +246,7 @@
       <nav class="tabs" id="tabs">
         <button data-tab="home" class="on"><span class="ic"><i data-i="home"></i></span>홈</button>
         <button data-tab="vocab"><span class="ic"><i data-i="book"></i></span>단어장</button>
-        <button data-tab="other" data-title="학습"><span class="ic"><i data-i="cap"></i></span>학습</button>
+        <button data-tab="study"><span class="ic"><i data-i="cap"></i></span>학습</button>
         <button data-tab="other" data-title="커뮤니티"><span class="ic"><i data-i="users"></i></span>커뮤니티</button>
         <button data-tab="other" data-title="설정"><span class="ic"><i data-i="gear"></i></span>설정</button>
       </nav>
@@ -207,7 +258,7 @@
   <!-- ===== 개발자 패널: 뒤에서 일어나는 일 ===== -->
   <aside class="dev">
     <h2>뒤에서 일어나는 일</h2>
-    <p class="hint">휴대폰에서 탭을 누를 때마다 서버가 Mini Redis와 DB 중 어디서 읽었는지 보여 줘요.</p>
+    <p class="hint">홈의 학습 통계는 Mini Redis(캐시)에서, 단어장 목록은 브라우저에 저장해 둔 것에서 읽어요. 어디서 읽었는지 보여 줘요.</p>
 
     <div class="stats">
       <div class="stat"><div class="l">캐시 HIT</div><div class="n" id="hits">0</div><div class="d">Mini Redis에서 바로</div></div>
@@ -256,6 +307,11 @@ const P = {
   "gear": '<path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/><circle cx="12" cy="12" r="3"/>',
   "trend": '<path d="M22 7 13.5 15.5 8.5 10.5 2 17"/><path d="M16 7h6v6"/>',
   "trash": '<path d="M3 6h18"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"/><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>',
+  "flash": '<rect x="4.5" y="2.5" width="15" height="19" rx="2.5"/><path d="M9.6 9.2a2.5 2.5 0 1 1 3.5 2.3c-.7.4-1.1.9-1.1 1.6"/><circle class="f" cx="12" cy="16.4" r=".95"/>',
+  "play": '<path d="M3 5.2v13.6a.6.6 0 0 0 .9.5l10.6-6.8a.6.6 0 0 0 0-1L3.9 4.7a.6.6 0 0 0-.9.5z"/><path d="M18 5v14"/><path d="M21.5 5v14"/>',
+  "pencil": '<path class="f" d="M3 21l1.3-5.3L15.8 4.2a2.2 2.2 0 0 1 3.1 0l.9.9a2.2 2.2 0 0 1 0 3.1L8.3 19.7z"/>',
+  "quiz": '<rect x="3" y="3" width="8.5" height="8.5" rx="1.6"/><rect x="12.5" y="3" width="8.5" height="8.5" rx="1.6"/><rect x="3" y="12.5" width="8.5" height="8.5" rx="1.6"/><rect x="12.5" y="12.5" width="8.5" height="8.5" rx="1.6"/><text class="f" x="7.25" y="9.4" font-size="6.4" font-weight="700" text-anchor="middle">Q</text><text class="f" x="16.75" y="9.4" font-size="6.4" font-weight="700" text-anchor="middle">U</text><text class="f" x="7.25" y="18.9" font-size="6.4" font-weight="700" text-anchor="middle">I</text><text class="f" x="16.75" y="18.9" font-size="6.4" font-weight="700" text-anchor="middle">Z</text>',
+  "clock": '<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>',
   "signal": '<path class="f" d="M3 20h3.2v-4H3zM8.4 20h3.2v-8H8.4zM13.8 20h3.2V8h-3.2zM19.2 20h2.4V4h-2.4z"/>',
   "wifi": '<path d="M5 12.55a11 11 0 0 1 14 0"/><path d="M1.42 9a16 16 0 0 1 21.16 0"/><path d="M8.53 16.11a6 6 0 0 1 6.95 0"/><circle class="f" cx="12" cy="20" r="1"/>',
   "battery": '<rect x="2" y="7" width="17" height="10" rx="2.5"/><path d="M22 11v2"/><rect class="f" x="4.5" y="9.5" width="12" height="5" rx="1"/>'
@@ -266,7 +322,7 @@ document.querySelectorAll("i[data-i]").forEach(n => { n.outerHTML = icon(n.datas
 const FILTERS = [["all", "전체"], ["done", "암기 완료"], ["todo", "암기 미완료"]];
 const SORTS = ["기본", "가나다순"];
 const VIEWS = [["모두 보기", "eye"], ["뜻 가리기", "eye-off"]];
-let words = [], filterIdx = 0, sortIdx = 0, viewIdx = 0, busy = false;
+let words = [], filterIdx = 0, sortIdx = 0, viewIdx = 0;
 
 const json = (method, body) => ({method, headers: {"content-type": "application/json"}, body: JSON.stringify(body)});
 function setErr(m) { $("err").textContent = m || ""; }
@@ -301,14 +357,16 @@ function renderList() {
     const card = el("div", "card"), head = el("div", "head");
     const tag = el("button", "tag " + (w.memorized ? "done" : "todo"), w.memorized ? "암기 완료" : "암기 미완료");
     tag.title = "눌러서 암기 상태 바꾸기";
-    tag.onclick = () => write(() => api("/api/words/" + w.id, json("PATCH", {memorized: !w.memorized})), "암기 상태 변경 후 갱신");
+    tag.onclick = () => run(async () => {
+      const t0 = performance.now(), r = await api("/api/words/" + w.id, json("PATCH", {memorized: !w.memorized}));
+      Object.assign(w, r.word); saveWords(); renderList(); writeLog(t0, "암기 상태를 서버에 쓰고 브라우저 목록만 고쳐요");
+    });
     const dots = el("button", "dots"); dots.innerHTML = icon("more");
     dots.onclick = (ev) => { ev.stopPropagation(); toggleMenu(card, w); };
     head.append(el("div", "w", w.word), tag, dots);
     const m = el("div", "m" + (viewIdx === 1 ? " blur" : ""), w.meaning);
     if (viewIdx === 1) m.onclick = () => m.classList.toggle("blur");
     card.append(head, m);
-    if (w.reviews != null) card.append(el("div", "m", "복습 " + w.reviews.toLocaleString() + "회"));
     box.append(card);
   }
 }
@@ -318,7 +376,10 @@ function toggleMenu(card, w) {
   if (had) return;
   const m = el("div", "menu"), b = el("button");
   b.innerHTML = icon("trash") + "삭제";
-  b.onclick = () => write(() => api("/api/words/" + w.id, {method: "DELETE"}), "삭제 후 갱신");
+  b.onclick = () => run(async () => {
+    const t0 = performance.now(); await api("/api/words/" + w.id, {method: "DELETE"});
+    words = words.filter(x => x.id !== w.id); saveWords(); renderList(); writeLog(t0, "삭제를 서버에 쓰고 브라우저 목록만 고쳐요");
+  });
   m.append(b); card.append(m);
 }
 document.addEventListener("click", () => document.querySelectorAll(".menu").forEach(m => m.remove()));
@@ -326,9 +387,9 @@ document.addEventListener("click", () => document.querySelectorAll(".menu").forE
 /* ---------- 로그 / 상태 ---------- */
 function addLog(r, why) {
   const tr = el("tr");
-  const c1 = el("td"); c1.append(el("span", "badge " + r.cache, r.cache));
+  const c1 = el("td"); c1.append(el("span", "badge " + (r.cls || r.cache), r.cache));
   const c2 = el("td", null, r.ms.toFixed(0) + " ms");
-  const c3 = el("td"); const bar = el("div", "bar" + (r.cache === "HIT" ? " hit" : ""));
+  const c3 = el("td"); const bar = el("div", "bar" + (r.cache === "HIT" || r.cls === "LOCAL" ? " hit" : ""));
   bar.style.width = Math.max(2, Math.min(100, r.ms / MAX_MS * 100)) + "%"; c3.style.width = "34%"; c3.append(bar);
   const c4 = el("td", "why", why);
   tr.append(c1, c2, c3, c4);
@@ -342,9 +403,10 @@ async function refresh() {
     $("hits").textContent = s.hits; $("misses").textContent = s.misses; $("dbreads").textContent = s.db_reads;
     const t = s.hits + s.misses; $("rate").textContent = t ? Math.round(s.hits / t * 100) + "%" : "-";
     $("foot").textContent = (s.db === "postgres"
-      ? "DB는 진짜 PostgreSQL이에요. 목록을 읽을 때 복습 기록 200만 건을 집계해 단어별 복습 횟수를 계산해요. "
-      : "DB 200ms는 느린 DB를 흉내 낸 값이에요. ")
-      + "단어를 추가·삭제하거나 암기 상태를 바꾸면 DB에 쓰고 캐시 키를 지운 뒤 목록을 다시 불러와요.";
+      ? "DB는 진짜 PostgreSQL이에요. 홈의 학습 통계는 학습 기록을 읽을 때마다 집계해요. "
+        + (s.db_rtt_ms > 0 ? "Redis는 가깝고 DB는 멀리 있다고 가정해서, DB를 읽고 쓸 때마다 왕복 " + s.db_rtt_ms + "ms를 대기로 더했어요(흉내 낸 값). " : "")
+      : "통계를 집계할 때 걸리는 200ms는 느린 DB를 흉내 낸 값이에요. ")
+      + "학습을 기록하면 DB에 쓴 뒤 통계 캐시 키를 지워요. 단어장 목록은 브라우저가 저장해 두고 서버를 다시 부르지 않아요.";
     $("cacheOn").checked = s.use_cache; $("keyCount").textContent = s.keys.length;
     const body = $("keys"); body.replaceChildren();
     for (const k of s.keys) { const tr = el("tr"); tr.append(el("td", null, k.key), el("td", null, k.ttl < 0 ? "무기한" : k.ttl)); body.append(tr); }
@@ -353,26 +415,128 @@ async function refresh() {
 }
 
 /* ---------- 동작 ---------- */
+const LS = {
+  get(k) { try { return JSON.parse(localStorage.getItem(k)); } catch (e) { return null; } },
+  set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) {} },
+  del(k) { try { localStorage.removeItem(k); } catch (e) {} },
+};
+const saveWords = () => LS.set("vocab:words", words);
+const writeLog = (t0, why) => addLog({cache: "쓰기", cls: "WRITE", ms: performance.now() - t0}, why);
+
+/* 단어장 목록: 브라우저에 저장해 둔 게 있으면 서버를 부르지 않는다 */
 async function loadList(why) {
+  const saved = LS.get("vocab:words");
+  if (saved) { words = saved; renderList(); addLog({cache: "브라우저", cls: "LOCAL", ms: 0}, why + ": 저장해 둔 목록"); return; }
   $("list").replaceChildren(el("div", "loading", "불러오는 중..."));
-  const r = await api("/api/words");
-  words = r.words; renderList(); addLog(r, why);
+  const t0 = performance.now(), r = await api("/api/words");
+  words = r.words; saveWords(); renderList(); addLog({cache: "서버", cls: "LOCAL", ms: performance.now() - t0}, why + ": 처음이라 서버에서");
 }
-async function run(fn) {
-  if (busy) return; busy = true; document.body.style.cursor = "progress";
-  try { await fn(); setErr(""); } catch (e) { setErr(e.message); toast("실패: " + e.message); }
-  busy = false; document.body.style.cursor = ""; await refresh();
+
+/* 홈의 오늘의 학습 현황: Mini Redis에 캐싱한 통계 */
+async function loadStats(why) {
+  const r = await api("/api/stats"), s = r.stats;
+  $("stWords").textContent = s.words_today;
+  $("stMin").textContent = Math.ceil(s.seconds_today / 60);
+  $("stStreak").textContent = s.streak_days;
+  addLog(r, why);
 }
-const write = (fn, why) => run(async () => { await fn(); await loadList(why); });
+/* 동작은 눌린 순서대로 하나씩 처리한다(빠르게 눌러도 버리지 않는다) */
+let pending = 0, chain = Promise.resolve();
+function run(fn) {
+  pending++; document.body.style.cursor = "progress";
+  chain = chain.then(async () => {
+    try { await fn(); setErr(""); } catch (e) { setErr(e.message); toast("실패: " + e.message); }
+    await refresh();
+    if (--pending === 0) document.body.style.cursor = "";
+  });
+  return chain;
+}
+
+/* ---------- 학습 (플래시카드) ---------- */
+const DECK = "11/19 TOEIC DAY3";
+function loadRecords() {
+  let r = LS.get("vocab:records");
+  if (!r) {
+    const now = Date.now(), H = 3600e3, D = 24 * H;
+    r = [{title: DECK, mode: "플래시카드", seconds: 6, score: 40, at: now - 7 * H},
+         {title: "과일", mode: "플래시카드", seconds: 2, score: 50, at: now - 2 * D},
+         {title: "과일", mode: "플래시카드", seconds: 4, score: 60, at: now - 8 * D}];
+    LS.set("vocab:records", r);
+  }
+  return r;
+}
+function ago(at) {
+  const m = Math.floor((Date.now() - at) / 60000);
+  if (m < 1) return "방금 전";
+  if (m < 60) return m + "분 전";
+  const h = Math.floor(m / 60);
+  return h < 24 ? h + "시간 전" : Math.floor(h / 24) + "일 전";
+}
+let showAllRecords = false;
+function renderRecords() {
+  const box = $("records"); box.replaceChildren();
+  const all = loadRecords();
+  for (const r of showAllRecords ? all : all.slice(0, 3)) {
+    const card = el("div", "panel rec"), left = el("div"), right = el("div");
+    left.append(el("div", "t", r.title));
+    const sub = el("div", "s"), clk = el("span", "clk");
+    clk.innerHTML = icon("clock"); clk.append(r.seconds + "초");
+    sub.append(document.createTextNode(r.mode), clk, document.createTextNode(ago(r.at)));
+    left.append(sub);
+    right.append(el("div", "pct", r.score + "%"), el("div", "lbl", "점수"));
+    card.append(left, right); box.append(card);
+  }
+  $("moreRec").textContent = showAllRecords ? "접기" : "더보기";
+}
+
+let session = null;
+function renderCard() {
+  const c = session.cards[session.i];
+  $("flashSub").textContent = (session.i + 1) + " / " + session.cards.length;
+  $("fw").textContent = c.word; $("fm").textContent = c.meaning || "-";
+  $("fcard").classList.remove("flip"); session.shownAt = Date.now();
+}
+async function startFlash() {
+  if (!words.length) await loadList("플래시카드 시작");
+  if (!words.length) { toast("학습할 단어가 없어요"); return; }
+  session = {cards: words.slice(0, 10), i: 0, known: 0, seconds: 0, shownAt: 0};
+  showTab("flash"); renderCard();
+}
+async function answer(known) {
+  if (!session) return;
+  const c = session.cards[session.i], sec = Math.max(1, Math.round((Date.now() - session.shownAt) / 1000));
+  const t0 = performance.now();
+  await api("/api/study", json("POST", {word_id: c.id, seconds: sec}));
+  writeLog(t0, "학습 기록을 DB에 쓰고 통계 캐시 키를 지웠어요");
+  session.seconds += sec; if (known) session.known++;
+  if (++session.i < session.cards.length) { renderCard(); return; }
+  const score = Math.round(session.known / session.cards.length * 100), recs = loadRecords();
+  recs.unshift({title: DECK, mode: "플래시카드", seconds: session.seconds, score, at: Date.now()});
+  LS.set("vocab:records", recs.slice(0, 20));
+  session = null; toast("학습 완료! 점수 " + score + "%");
+  showTab("study"); renderRecords();
+}
+$("fcard").onclick = () => $("fcard").classList.toggle("flip");
+let answering = false;   // 답을 보내는 동안 같은 카드에 또 눌러도 한 번만 센다
+const tap = (known) => { if (answering) return; answering = true; run(() => answer(known)).finally(() => { answering = false; }); };
+$("fYes").onclick = () => tap(true);
+$("fNo").onclick = () => tap(false);
+$("flashBack").onclick = () => { session = null; showTab("study"); };
+$("mFlash").onclick = () => run(startFlash);
+document.querySelectorAll(".mode[data-soon]").forEach(b => b.onclick = () => toast("시연에서는 플래시카드만 지원해요"));
+$("moreRec").onclick = () => { showAllRecords = !showAllRecords; renderRecords(); };
 
 function showTab(name, title) {
-  document.querySelectorAll("#tabs button").forEach(b => b.classList.toggle("on", b.dataset.tab === name && (name !== "other" || b.dataset.title === title)));
-  for (const v of ["home", "other", "vocab"]) $("view-" + v).classList.toggle("on", v === name);
+  const tab = name === "flash" ? "study" : name;
+  document.querySelectorAll("#tabs button").forEach(b => b.classList.toggle("on", b.dataset.tab === tab && (tab !== "other" || b.dataset.title === title)));
+  for (const v of ["home", "other", "study", "flash", "vocab"]) $("view-" + v).classList.toggle("on", v === name);
   if (name === "other") $("otherTitle").textContent = title;
 }
 document.querySelectorAll("#tabs button").forEach(b => b.onclick = () => {
   showTab(b.dataset.tab, b.dataset.title);
-  if (b.dataset.tab === "vocab") run(() => loadList("단어장 메뉴 진입"));   // 메뉴에 들어갈 때마다 목록을 다시 불러온다
+  if (b.dataset.tab === "home") run(() => loadStats("홈 탭 진입"));          // 홈을 열 때마다 통계를 불러온다(캐시)
+  if (b.dataset.tab === "vocab") run(() => loadList("단어장 탭 진입"));       // 목록은 브라우저에 저장해 둔 것을 쓴다
+  if (b.dataset.tab === "study") renderRecords();
 });
 
 function setChip(id, label, iconName) { const c = $(id); c.querySelector("span").textContent = label; if (iconName) c.querySelector("svg").outerHTML = icon(iconName); }
@@ -385,21 +549,24 @@ $("openAdd").onclick = () => { $("addForm").classList.add("on"); $("newWord").fo
 $("cancelAdd").onclick = () => $("addForm").classList.remove("on");
 $("addForm").onsubmit = (ev) => {
   ev.preventDefault();
-  write(async () => {
-    await api("/api/words", json("POST", {word: $("newWord").value, meaning: $("newMeaning").value}));
+  run(async () => {
+    const t0 = performance.now(), r = await api("/api/words", json("POST", {word: $("newWord").value, meaning: $("newMeaning").value}));
+    words.push(r.word); saveWords(); renderList();
     $("newWord").value = ""; $("newMeaning").value = ""; $("addForm").classList.remove("on");
-  }, "추가 후 갱신");
+    writeLog(t0, "추가를 서버에 쓰고 브라우저 목록만 고쳐요");
+  });
 };
 $("cacheOn").onchange = () => run(() => api("/api/cache-mode", json("POST", {enabled: $("cacheOn").checked})));
 $("reset").onclick = () => run(async () => {
   await api("/api/reset", {method: "POST"});
-  words = []; $("log").replaceChildren(); $("logEmpty").style.display = "block"; $("q").value = "";
+  words = []; LS.del("vocab:words"); LS.del("vocab:records"); session = null; showAllRecords = false;
+  $("log").replaceChildren(); $("logEmpty").style.display = "block"; $("q").value = "";
   filterIdx = sortIdx = viewIdx = 0; setChip("filter", FILTERS[0][1]); setChip("sort", SORTS[0]); setChip("view", VIEWS[0][0], VIEWS[0][1]);
-  showTab("home");
+  showTab("home"); await loadStats("처음부터 후 홈");
 });
 
-refresh();
-setInterval(() => { if (!busy) refresh(); }, 1000);   // TTL이 줄어드는 모습이 보이게
+run(() => loadStats("앱 시작: 홈 화면"));
+setInterval(() => { if (pending === 0) refresh(); }, 1000);   // TTL이 줄어드는 모습이 보이게
 </script>
 </body>
 </html>

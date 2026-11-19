@@ -62,10 +62,11 @@ start sample sample_app.app:app      "$SAMPLE_PORT"
 # 단어장 화면의 DB: PostgreSQL(PG_DSN, 기본 5433 포트)에 연결되면 진짜 DB를, 아니면 200ms 지연을 흉내 낸 메모리 DB를 쓴다
 PG_DSN="${PG_DSN:-postgresql://postgres:bench@127.0.0.1:5433/bench}"
 if "$PY" -c "import psycopg,sys; psycopg.connect(sys.argv[1], connect_timeout=2).close()" "$PG_DSN" 2>/dev/null; then
-  export VOCAB_DB=pg PG_DSN
-  echo "단어장 DB: PostgreSQL (복습 기록 200만 건이 없으면 처음 한 번 만든다)"
+  # Redis는 앱 서버 가까이에, DB는 그보다 멀리 있다고 가정해 DB 읽기·쓰기마다 왕복 시간을 더한다(기본 30ms, DB_RTT_MS=0이면 끈다)
+  export VOCAB_DB=pg PG_DSN DB_RTT_MS="${DB_RTT_MS:-30}"
+  echo "단어장 DB: PostgreSQL (학습 기록 테이블이 없으면 처음 한 번 만든다), DB 왕복 ${DB_RTT_MS}ms 가정 (끄려면 DB_RTT_MS=0)"
 else
-  echo "단어장 DB: 메모리(200ms 지연 흉내). PostgreSQL을 쓰려면 bench/README.md의 docker 명령으로 띄우세요."
+  echo "단어장 DB: 메모리(통계 집계에 200ms 지연 흉내). PostgreSQL을 쓰려면 bench/README.md의 docker 명령으로 띄우세요."
 fi
 start demo   sample_app.vocab_app:app "$DEMO_PORT"
 wait_ready redis  "http://127.0.0.1:$REDIS_PORT/health"
